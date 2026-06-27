@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="theme-color" content="#f59e0b"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SonarRescate"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<title>SonarRescate</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:#0a0a0a;overflow:hidden;}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;max-width:480px;margin:0 auto;}
+
+/* HEADER */
+.hdr{background:#111;border-bottom:1px solid #1e1e1e;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.logo{font-size:11px;font-weight:700;letter-spacing:3px;color:#f0f0f0;}.logo span{color:#f59e0b;}
+.hright{display:flex;align-items:center;gap:8px;}
+.stxt{font-size:9px;color:#3a3a3a;letter-spacing:1px;}
+.sdot{width:9px;height:9px;border-radius:50%;background:#2a2a2a;transition:background .3s;}
+.sdot.on{background:#22c55e;}.sdot.listen{background:#f59e0b;animation:blink 1s infinite;}
+.sdot.alert{background:#ef4444;animation:blink .35s infinite;}.sdot.gps{background:#3b82f6;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* TABS */
+.tabbar{display:flex;background:#0d0d0d;border-bottom:1px solid #1a1a1a;flex-shrink:0;}
+.tb{flex:1;padding:9px 2px;font-size:9px;font-weight:700;letter-spacing:.8px;color:#333;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tb.on{color:#f0f0f0;border-bottom-color:#f59e0b;}
+
+/* SCROLL */
+.main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:11px;display:flex;flex-direction:column;gap:9px;padding-bottom:max(11px,env(safe-area-inset-bottom));}
+.tab-c{display:none;flex-direction:column;gap:9px;}
+.tab-c.on{display:flex;}
+
+/* PANELS */
+.panel{background:#111;border-radius:9px;border:1px solid #1e1e1e;padding:10px 12px;}
+.plbl{font-size:8px;color:#2a2a2a;letter-spacing:2px;margin-bottom:7px;text-transform:uppercase;}
+
+/* PANTALLA DE INICIO — BOTÓN ÚNICO GRANDE */
+.start-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:20px;min-height:340px;}
+.start-icon{font-size:52px;line-height:1;}
+.start-title{font-size:15px;font-weight:700;letter-spacing:2px;color:#f0f0f0;text-align:center;}
+.start-sub{font-size:10px;color:#444;text-align:center;line-height:1.8;max-width:280px;}
+.start-btn{width:100%;padding:20px;background:#f59e0b;color:#000;border:none;border-radius:12px;font-size:16px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s;}
+.start-btn:active{transform:scale(.97);background:#d97706;}
+.start-steps{width:100%;display:flex;flex-direction:column;gap:8px;}
+.step{display:flex;align-items:center;gap:10px;font-size:10px;color:#444;padding:8px 12px;background:#111;border-radius:7px;border:1px solid #1a1a1a;}
+.step-num{width:22px;height:22px;border-radius:50%;background:#f59e0b22;border:1px solid #f59e0b44;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#f59e0b;flex-shrink:0;}
+
+/* ESTADO DE PERMISOS */
+.perm-card{border-radius:9px;border:2px solid #1e1e1e;padding:14px;display:flex;align-items:center;gap:12px;transition:all .3s;}
+.perm-card.ok{border-color:#22c55e;background:#22c55e08;}
+.perm-card.wait{border-color:#f59e0b;background:#f59e0b08;}
+.perm-card.err{border-color:#ef4444;background:#ef444408;}
+.perm-icon{font-size:22px;flex-shrink:0;}
+.perm-title{font-size:11px;font-weight:700;margin-bottom:2px;}
+.perm-sub{font-size:9px;color:#555;line-height:1.5;}
+
+/* CANVAS */
+canvas{width:100%;display:block;border-radius:5px;background:#080808;}
+
+/* METER */
+.mrow{display:flex;align-items:center;gap:7px;margin-top:5px;}
+.mtrack{flex:1;height:12px;background:#141414;border-radius:6px;overflow:hidden;position:relative;}
+.mfill{height:100%;width:0%;border-radius:6px;transition:width .07s;background:linear-gradient(to right,#22c55e 0%,#22c55e 45%,#f59e0b 72%,#ef4444 100%);}
+.mpk{position:absolute;top:0;width:3px;height:100%;background:#ffffffaa;transition:left .12s;}
+.mval{font-size:11px;color:#f59e0b;font-family:monospace;min-width:56px;text-align:right;}
+
+/* BASELINE */
+.blbar{height:4px;border-radius:2px;background:#1a1a1a;overflow:hidden;margin-top:5px;}
+.blfill{height:100%;width:0%;background:#3b82f6;transition:width .12s;}
+.bllbl{font-size:8px;color:#333;margin-top:3px;}
+
+/* DISTANCIA */
+.distcard{border-radius:9px;border:2px solid #1e1e1e;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;transition:all .35s;background:#0f0f0f;}
+.distcard.z0{border-color:#ef4444;background:#ef444412;}
+.distcard.z1{border-color:#f59e0b;background:#f59e0b08;}
+.distcard.z2{border-color:#eab308;background:#eab30806;}
+.distcard.z3{border-color:#22c55e;background:#22c55e06;}
+.dval{font-size:26px;font-weight:700;font-family:monospace;color:#f0f0f0;line-height:1;}
+.dunit{font-size:11px;color:#555;margin-left:2px;}
+.dtipo{font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:2px;}
+.dconf{font-size:8px;color:#3a3a3a;}
+
+/* PROTOCOLO */
+.psteps{display:flex;gap:4px;align-items:center;margin-bottom:8px;}
+.pdot{width:34px;height:34px;border-radius:50%;background:#1a1a1a;border:1px solid #252525;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#3a3a3a;transition:all .22s;flex-shrink:0;}
+.pdot.on{background:#f59e0b22;border-color:#f59e0b;color:#f59e0b;}
+.pdot.done{background:#22c55e22;border-color:#22c55e;color:#22c55e;}
+.pline{flex:1;height:1px;background:#1e1e1e;}
+.sbar{background:#1a1a1a;border-radius:4px;height:26px;overflow:hidden;position:relative;}
+.sfill{height:100%;width:0%;background:#22c55e18;transition:width .12s;}
+.slbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;color:#333;white-space:nowrap;}
+.slbl.cnt{color:#22c55e;}
+
+/* MAPA */
+#map{width:100%;height:250px;border-radius:8px;border:1px solid #1e1e1e;}
+.map-tb{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.lbtn{padding:5px 9px;border-radius:4px;border:1px solid #222;background:#161616;color:#444;font-size:8px;font-weight:700;cursor:pointer;transition:all .2s;}
+.lbtn.on{border-color:#f59e0b;color:#f59e0b;}
+.mleg{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;}
+.mli{display:flex;align-items:center;gap:3px;font-size:8px;color:#333;}
+.mld{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+.gc{background:#0f0f0f;border-radius:6px;border:1px solid #1a1a1a;padding:7px 9px;}
+.gclbl{font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-bottom:2px;}
+.gcval{font-size:13px;font-weight:500;color:#f0f0f0;font-family:monospace;}
+.sc{background:#0f0f0f;border-radius:6px;border:1px solid #1a1a1a;padding:7px 9px;}
+.sclbl{font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-bottom:2px;}
+.scval{font-size:15px;font-weight:500;color:#f0f0f0;font-family:monospace;}
+
+/* BOTONES */
+.btn{padding:14px 8px;border-radius:9px;border:1px solid #252525;background:#161616;color:#f0f0f0;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center;width:100%;min-height:50px;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;-webkit-appearance:none;}
+.btn:active{transform:scale(.97);}
+.btn.prim{background:#f59e0b;color:#000;border-color:#f59e0b;font-size:14px;}
+.btn.prim:active{background:#d97706;}
+.btn.sec{border-color:#1e1e1e;color:#555;font-size:10px;min-height:42px;letter-spacing:1px;}
+.btn.rec{background:#ef444415;border-color:#ef4444;color:#ef4444;}
+.btn.green{background:#22c55e15;border-color:#22c55e;color:#22c55e;}
+.btn.blue{background:#3b82f615;border-color:#3b82f6;color:#3b82f6;}
+
+/* FLASH */
+.aflash{background:#ef444412;border:1px solid #ef444455;border-radius:7px;padding:9px 12px;font-size:11px;color:#ef4444;display:none;align-items:center;gap:8px;font-weight:700;}
+.aflash.show{display:flex;}
+
+/* LOG */
+.elog{max-height:140px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.erow{display:flex;gap:6px;padding:3px 0;border-bottom:1px solid #141414;font-size:9px;font-family:monospace;}
+.erow:last-child{border:none;}
+.et{color:#2a2a2a;min-width:58px;flex-shrink:0;}
+.em{color:#444;word-break:break-word;}
+.em.d{color:#ef4444;font-weight:700;}.em.a{color:#f59e0b;}
+.em.ok{color:#22c55e;}.em.i{color:#5555dd;}.em.g{color:#3b82f6;}
+
+/* NOTICE */
+.notice{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:9px 12px;font-size:9px;color:#444;line-height:1.8;}
+.notice b{color:#f59e0b;}.notice b.ok{color:#22c55e;}.notice b.rd{color:#ef4444;}
+
+/* iOS INSTALL */
+.ios-install{background:#1a1a0a;border:1px solid #f59e0b33;border-radius:8px;padding:10px 13px;font-size:9px;color:#555;line-height:1.8;display:none;}
+.ios-install.show{display:block;}.ios-install b{color:#f59e0b;}
+
+/* CONFIG */
+.frow{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.flbl{font-size:9px;color:#2a2a2a;min-width:62px;}
+.fval{font-size:10px;color:#f59e0b;font-family:monospace;min-width:52px;text-align:right;}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:#2a2a2a;outline:none;accent-color:#f59e0b;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#f59e0b;cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#f59e0b;cursor:pointer;border:none;}
+
+/* ABOUT */
+.about-g{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.about-c{background:#0f0f0f;border-radius:6px;border:1px solid #1a1a1a;padding:8px 10px;}
+.about-c h4{font-size:8px;color:#f59e0b;letter-spacing:1px;margin-bottom:3px;}
+.about-c p{font-size:8px;color:#3a3a3a;line-height:1.6;}
+.vbadge{display:inline-block;font-size:8px;padding:2px 7px;border-radius:3px;background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44;margin-left:6px;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px;}
+
+/* LEYENDA DISTANCIA */
+.dist-legend{display:flex;flex-direction:column;gap:3px;margin-top:6px;}
+.dl-row{display:flex;align-items:center;gap:7px;font-size:8px;color:#444;}
+.dl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <span class="logo">SONAR<span>RESCATE</span></span>
+  <div class="hright">
+    <span class="stxt" id="stxt">INACTIVO</span>
+    <div class="sdot" id="sdot"></div>
+  </div>
+</div>
+<div class="tabbar">
+  <button class="tb on" onclick="tab('inicio')" id="tb-inicio">INICIO</button>
+  <button class="tb" onclick="tab('esc')" id="tb-esc">ESCUCHA</button>
+  <button class="tb" onclick="tab('emit')" id="tb-emit">EMISIÓN</button>
+  <button class="tb" onclick="tab('mapa')" id="tb-mapa">MAPA</button>
+  <button class="tb" onclick="tab('mas')" id="tb-mas">MÁS</button>
+</div>
+
+<div class="main">
+
+<!-- ══ TAB INICIO ══ -->
+<div class="tab-c on" id="tc-inicio">
+  <div class="start-screen">
+    <div class="start-icon">🔊</div>
+    <div class="start-title">SONAR RESCATE</div>
+    <div class="start-sub">Detección acústica de víctimas en estructuras colapsadas. Un toque activa el micrófono y el GPS.</div>
+    <button class="start-btn" id="btn-iniciar" onclick="iniciarTodo(this)">
+      INICIAR SISTEMA
+    </button>
+    <div class="start-steps">
+      <div class="step"><div class="step-num">1</div>Presiona INICIAR SISTEMA — el navegador pedirá acceso al micrófono</div>
+      <div class="step"><div class="step-num">2</div>Acepta el permiso del micrófono cuando aparezca el diálogo</div>
+      <div class="step"><div class="step-num">3</div>El GPS se activa automáticamente — acepta también si lo pide</div>
+      <div class="step"><div class="step-num">4</div>Ve a ESCUCHA y presiona ESCUCHAR para comenzar la detección</div>
+    </div>
+  </div>
+
+  <!-- Estado de permisos -->
+  <div id="perm-mic" class="perm-card wait" style="display:none;">
+    <div class="perm-icon" id="pmic-icon">🎙</div>
+    <div>
+      <div class="perm-title" id="pmic-title">Micrófono</div>
+      <div class="perm-sub" id="pmic-sub">Esperando autorización...</div>
+    </div>
+  </div>
+  <div id="perm-gps" class="perm-card wait" style="display:none;">
+    <div class="perm-icon" id="pgps-icon">📡</div>
+    <div>
+      <div class="perm-title" id="pgps-title">GPS / Ubicación</div>
+      <div class="perm-sub" id="pgps-sub">Buscando señal...</div>
+    </div>
+  </div>
+  <div id="perm-audio-ctx" class="perm-card wait" style="display:none;">
+    <div class="perm-icon">🔈</div>
+    <div>
+      <div class="perm-title">Motor de audio</div>
+      <div class="perm-sub" id="pctx-sub">Inicializando Web Audio API...</div>
+    </div>
+  </div>
+
+  <div class="ios-install" id="ios-banner">
+    <b>Instalar en iPhone / iPad:</b> toca el botón Compartir (□↑) en Safari → "Añadir a pantalla de inicio" → Añadir<br>
+    <b>Instalar en Android:</b> menú del navegador → "Añadir a pantalla de inicio"
+  </div>
+
+  <div class="notice" id="sys-notice" style="display:none;font-size:9px;">
+    <b class="ok">Sistema listo.</b> Sesión: <span id="sid-lbl">—</span><br>
+    Audio: <span id="sys-sr">—</span> Hz · GPS: <span id="sys-gps-st">buscando...</span>
+  </div>
+</div>
+
+<!-- ══ TAB ESCUCHA ══ -->
+<div class="tab-c" id="tc-esc">
+  <div class="panel">
+    <div class="plbl">Señal acústica — tiempo real</div>
+    <canvas id="cv-esc" height="72"></canvas>
+    <div class="mrow">
+      <div class="mtrack"><div class="mfill" id="mf-esc"></div><div class="mpk" id="mpk-esc" style="left:0%"></div></div>
+      <div class="mval" id="mv-esc">— dB</div>
+    </div>
+    <div class="blbar"><div class="blfill" id="blf"></div></div>
+    <div class="bllbl" id="bllbl">Sin audio activo — ve a INICIO y presiona INICIAR SISTEMA</div>
+  </div>
+
+  <div class="distcard" id="distcard">
+    <div>
+      <div style="font-size:8px;color:#2a2a2a;letter-spacing:1.5px;margin-bottom:3px;">DISTANCIA ESTIMADA</div>
+      <div><span class="dval" id="dv">—</span><span class="dunit" id="du"></span></div>
+    </div>
+    <div style="text-align:right;">
+      <div class="dtipo" id="dt" style="color:#2a2a2a;">SIN SEÑAL</div>
+      <div class="dconf" id="dc">Esperando detección</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="sc"><div class="sclbl">PICO ACTUAL</div><div class="scval" id="sc-pk">—</div></div>
+    <div class="sc"><div class="sclbl">EVENTOS</div><div class="scval" id="sc-ev">0</div></div>
+    <div class="sc"><div class="sclbl">RUIDO BASE</div><div class="scval" id="sc-base">—</div></div>
+    <div class="sc"><div class="sclbl">CON GPS</div><div class="scval" id="sc-geo">0</div></div>
+  </div>
+
+  <div class="aflash" id="af-esc">⚠ SEÑAL DETECTADA — registrando posición</div>
+
+  <button class="btn prim" id="btn-esc" onclick="toggleEscucha()">ESCUCHAR</button>
+  <div class="g2">
+    <button class="btn sec" onclick="marcarManual()">MARCAR EVENTO</button>
+    <button class="btn sec" onclick="tab('mapa')">VER MAPA</button>
+  </div>
+
+  <div class="panel">
+    <div class="plbl">Registro de sesión</div>
+    <div class="elog" id="elog-esc">
+      <div class="erow"><span class="et">—</span><span class="em">Sin eventos aún</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB EMISIÓN ══ -->
+<div class="tab-c" id="tc-emit">
+  <div class="notice">
+    <b>Protocolo INSARAG</b> — 3 pulsos + silencio de escucha. La víctima responde con golpes o voz. Coloca el teléfono sobre la superficie.
+  </div>
+  <div class="panel">
+    <div class="plbl">Retorno de señal durante escucha</div>
+    <canvas id="cv-emit" height="72"></canvas>
+    <div class="mrow">
+      <div class="mtrack"><div class="mfill" id="mf-emit"></div></div>
+      <div class="mval" id="mv-emit">— dB</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="plbl">Ciclo de protocolo</div>
+    <div class="psteps">
+      <div class="pdot" id="pd1">1</div><div class="pline"></div>
+      <div class="pdot" id="pd2">2</div><div class="pline"></div>
+      <div class="pdot" id="pd3">3</div><div class="pline"></div>
+      <div class="pdot" id="pd4" style="font-size:8px;">ESC</div>
+    </div>
+    <div class="sbar"><div class="sfill" id="sf"></div><div class="slbl" id="sl">Listo para emitir</div></div>
+  </div>
+  <div class="distcard" id="distcard-e">
+    <div>
+      <div style="font-size:8px;color:#2a2a2a;letter-spacing:1.5px;margin-bottom:3px;">DISTANCIA ESTIMADA</div>
+      <div><span class="dval" id="dv-e">—</span><span class="dunit" id="du-e"></span></div>
+    </div>
+    <div style="text-align:right;">
+      <div class="dtipo" id="dt-e" style="color:#2a2a2a;">SIN SEÑAL</div>
+      <div class="dconf" id="dc-e">Esperando ciclo</div>
+    </div>
+  </div>
+  <div class="aflash" id="af-emit">⚠ RESPUESTA DETECTADA EN SILENCIO</div>
+  <button class="btn prim" id="btn-emit" onclick="iniciarProtocolo()">EMITIR SEÑAL</button>
+  <div class="g2">
+    <div class="sc"><div class="sclbl">CICLOS</div><div class="scval" id="sc-ciclos">0</div></div>
+    <div class="sc"><div class="sclbl">PICO RETORNO</div><div class="scval" id="sc-pico-e">—</div></div>
+  </div>
+  <div class="panel">
+    <div class="plbl">Log de emisión</div>
+    <div class="elog" id="elog-emit">
+      <div class="erow"><span class="et">—</span><span class="em">Sin ciclos aún</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB MAPA ══ -->
+<div class="tab-c" id="tc-mapa">
+  <div class="notice" id="notice-gps">
+    <b>Mapa de calor GPS</b> — cada detección acústica queda georreferenciada. Activa el sistema desde INICIO para comenzar.
+  </div>
+  <div class="g2">
+    <button class="btn blue" id="btn-gps2" onclick="iniciarGPS()">📡 GPS</button>
+    <button class="btn sec" onclick="centrarMapa()">CENTRAR</button>
+  </div>
+  <div>
+    <div class="map-tb">
+      <div style="display:flex;gap:4px;">
+        <button class="lbtn on" id="lbtn-heat" onclick="toggleCapa('heat')">CALOR</button>
+        <button class="lbtn on" id="lbtn-mark" onclick="toggleCapa('mark')">PUNTOS</button>
+        <button class="lbtn on" id="lbtn-pos" onclick="toggleCapa('pos')">OPER.</button>
+      </div>
+      <span style="font-size:8px;color:#2a2a2a;" id="gps-acc-lbl">GPS: —</span>
+    </div>
+    <div id="map"></div>
+    <div class="mleg">
+      <div class="mli"><div class="mld" style="background:#ef4444"></div>&lt;50cm</div>
+      <div class="mli"><div class="mld" style="background:#f59e0b"></div>0.5–1.5m</div>
+      <div class="mli"><div class="mld" style="background:#eab308"></div>1.5–3m</div>
+      <div class="mli"><div class="mld" style="background:#22c55e"></div>3–5m</div>
+      <div class="mli"><div class="mld" style="background:#3b82f6"></div>Operador</div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="gc"><div class="gclbl">LATITUD</div><div class="gcval" id="gc-lat">—</div></div>
+    <div class="gc"><div class="gclbl">LONGITUD</div><div class="gcval" id="gc-lng">—</div></div>
+    <div class="gc"><div class="gclbl">PRECISIÓN</div><div class="gcval" id="gc-acc">—</div></div>
+    <div class="gc"><div class="gclbl">PUNTOS MAP.</div><div class="gcval" id="gc-pts">0</div></div>
+  </div>
+  <div class="g3">
+    <button class="btn sec" onclick="exportarGeoJSON()">GeoJSON</button>
+    <button class="btn sec" onclick="exportarCSV()">CSV</button>
+    <button class="btn sec" onclick="exportarTXT()">TXT</button>
+  </div>
+</div>
+
+<!-- ══ TAB MÁS ══ -->
+<div class="tab-c" id="tc-mas">
+  <div class="panel">
+    <div class="plbl">Parámetros de detección</div>
+    <div class="frow"><span class="flbl">Ganancia</span>
+      <input type="range" min="10" max="100" step="5" value="60" id="sl-gain" oninput="cfg.gain=+this.value;document.getElementById('dg').textContent=this.value+'x';if(gainNode)gainNode.gain.value=cfg.gain;">
+      <span class="fval" id="dg">60x</span></div>
+    <div class="frow"><span class="flbl">Sensibil.</span>
+      <input type="range" min="-80" max="-15" step="1" value="-45" id="sl-thresh" oninput="cfg.thresh=+this.value;document.getElementById('dth').textContent=this.value+' dB'">
+      <span class="fval" id="dth">-45 dB</span></div>
+    <div class="frow"><span class="flbl">Suavizado</span>
+      <input type="range" min="0" max="0.5" step="0.05" value="0.1" id="sl-sm" oninput="cfg.smooth=+this.value;if(analyser)analyser.smoothingTimeConstant=cfg.smooth;document.getElementById('dsm').textContent=(+this.value).toFixed(2)">
+      <span class="fval" id="dsm">0.10</span></div>
+  </div>
+  <div class="panel">
+    <div class="plbl">Señal de emisión</div>
+    <div class="frow"><span class="flbl">Frecuencia</span>
+      <input type="range" min="500" max="4000" step="50" value="1500" oninput="cfg.freq=+this.value;document.getElementById('df').textContent=this.value+' Hz'">
+      <span class="fval" id="df">1500 Hz</span></div>
+    <div class="frow"><span class="flbl">Duración</span>
+      <input type="range" min="100" max="800" step="50" value="300" oninput="cfg.dur=+this.value;document.getElementById('dd').textContent=this.value+' ms'">
+      <span class="fval" id="dd">300 ms</span></div>
+    <div class="frow"><span class="flbl">Escucha</span>
+      <input type="range" min="3" max="20" step="0.5" value="5" oninput="cfg.sil=+this.value;document.getElementById('dsi').textContent=(+this.value).toFixed(1)+' s'">
+      <span class="fval" id="dsi">5.0 s</span></div>
+  </div>
+  <div class="panel">
+    <div class="plbl">Referencia de distancia</div>
+    <div class="dist-legend">
+      <div class="dl-row"><div class="dl-dot" style="background:#ef4444"></div>&lt; 50 cm — contacto directo con escombro</div>
+      <div class="dl-row"><div class="dl-dot" style="background:#f59e0b"></div>50 cm – 1.5 m — pared delgada o losa</div>
+      <div class="dl-row"><div class="dl-dot" style="background:#eab308"></div>1.5 – 3 m — 1 a 2 capas de escombro</div>
+      <div class="dl-row"><div class="dl-dot" style="background:#22c55e"></div>3 – 5 m — múltiples capas, señal débil</div>
+      <div class="dl-row"><div class="dl-dot" style="background:#3a3a3a"></div>&gt; 5 m — incertidumbre alta</div>
+    </div>
+    <div style="font-size:8px;color:#2a2a2a;margin-top:8px;line-height:1.7;">Basado en atenuación acústica en concreto armado ~3 dB/cm a 1.5 kHz. Valores orientativos para golpes activos. No reemplaza equipos USAR profesionales.</div>
+  </div>
+  <div class="panel">
+    <div class="plbl">Acerca de SonarRescate <span class="vbadge">v0.5</span></div>
+    <div class="about-g">
+      <div class="about-c"><h4>LICENCIA</h4><p>MIT — código abierto, libre uso.</p></div>
+      <div class="about-c"><h4>PLATAFORMA</h4><p>PWA: Android, iOS, Chrome, Safari, Firefox.</p></div>
+      <div class="about-c"><h4>OFFLINE</h4><p>Funciona sin internet tras primera carga.</p></div>
+      <div class="about-c"><h4>CONTRIBUIR</h4><p>github.com/sonar-rescate</p></div>
+    </div>
+  </div>
+  <div class="notice">
+    Sesión activa: <b id="sid-lbl2">—</b><br>
+    Eventos: <b id="cnt-tot">0</b> total · <b id="cnt-geo2">0</b> georreferenciados
+  </div>
+  <div class="g2">
+    <button class="btn sec" onclick="resetearSesion()">NUEVA SESIÓN</button>
+    <button class="btn sec" onclick="exportarTXT()">EXPORTAR TXT</button>
+  </div>
+  <div class="ios-install" id="ios-banner2">
+    <b>Instalar en iPhone:</b> Safari → botón Compartir (□↑) → "Añadir a pantalla de inicio"<br>
+    <b>Instalar en Android:</b> Chrome → menú ⋮ → "Añadir a pantalla de inicio"
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ═══════════════════════════════════════
+   SONAR RESCATE v0.5
+   Safari/iOS + Chrome/Android compatible
+   MIT License
+═══════════════════════════════════════ */
+
+const SID = 'SR-' + Math.random().toString(36).slice(2,8).toUpperCase();
+const cfg = {gain:60,thresh:-45,smooth:0.1,freq:1500,dur:300,sil:5.0};
+
+let audioCtx=null, analyser=null, gainNode=null;
+let micReady=false, isListening=false, isEmitting=false, afId=null;
+let baseline=-90, bSamples=[], bReady=false;
+let peakHold=-90, peakTmr=null;
+let posActual=null, gpsWatch=null, gpsReady=false;
+let map=null, heatCv=null, heatCtx=null;
+let markers=[], posMarker=null, accCircle=null;
+let capaHeat=true, capaMark=true, capaPos=true;
+let eventos=[], cntEv=0, cntGeo=0, cntCiclos=0;
+let alertCD=false, deferredPWA=null;
+
+/* ── BOOT ── */
+document.getElementById('sid-lbl').textContent=SID;
+document.getElementById('sid-lbl2').textContent=SID;
+
+if('serviceWorker' in navigator)
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+/* iOS install banner */
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+const isAndroid=/android/i.test(navigator.userAgent);
+if(isIOS||isAndroid){
+  document.getElementById('ios-banner').classList.add('show');
+  document.getElementById('ios-banner2').classList.add('show');
+}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPWA=e;});
+
+/* visibility: reanudar audio si viene de background (iOS) */
+document.addEventListener('visibilitychange',()=>{
+  if(!audioCtx) return;
+  if(document.visibilityState==='visible'&&audioCtx.state!=='running'){
+    audioCtx.resume().catch(()=>{});
+  }
+});
+
+/* ── NAVEGACIÓN ── */
+function tab(id){
+  ['inicio','esc','emit','mapa','mas'].forEach(t=>{
+    document.getElementById('tc-'+t).classList.remove('on');
+    document.getElementById('tb-'+t).classList.remove('on');
+  });
+  document.getElementById('tc-'+id).classList.add('on');
+  document.getElementById('tb-'+id).classList.add('on');
+  if(id==='mapa'&&!map) initMapa();
+}
+
+function setDot(st,txt){
+  document.getElementById('sdot').className='sdot'+(st?' '+st:'');
+  document.getElementById('stxt').textContent=txt||'INACTIVO';
+}
+
+/* ── TIEMPO ── */
+const ts=()=>new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const tsFull=()=>new Date().toLocaleString('es',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+
+/* ── LOG ── */
+function log(msg,tipo,lid){
+  const elog=document.getElementById(lid||'elog-esc');
+  if(!elog) return;
+  if(elog.querySelector('.em')?.textContent.match(/Sin eventos|Sin ciclos/)) elog.innerHTML='';
+  const row=document.createElement('div'); row.className='erow';
+  row.innerHTML=`<span class="et">${ts()}</span><span class="em ${tipo||''}">${msg}</span>`;
+  elog.appendChild(row); elog.scrollTop=elog.scrollHeight;
+}
+
+/* ══════════════════════════════════════
+   INICIAR TODO — UN SOLO BOTÓN
+   Crítico para Safari: AudioContext debe
+   crearse en el mismo gesto de usuario
+══════════════════════════════════════ */
+async function iniciarTodo(btn){
+  btn.textContent='Iniciando...'; btn.disabled=true;
+
+  // Mostrar cards de estado
+  ['perm-mic','perm-gps','perm-audio-ctx'].forEach(id=>{
+    document.getElementById(id).style.display='flex';
+  });
+
+  /* PASO 1: Crear AudioContext sincrónicamente (dentro del gesto) */
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) throw new Error('Web Audio no soportado');
+    audioCtx = new AC();
+    // Safari: statechange handler
+    audioCtx.addEventListener('statechange',()=>{
+      if(audioCtx.state==='interrupted') audioCtx.resume().catch(()=>{});
+    });
+    setPermCard('perm-audio-ctx','ok','🔈','Motor de audio','Web Audio API activa — '+audioCtx.sampleRate+' Hz');
+    document.getElementById('sys-sr').textContent=audioCtx.sampleRate;
+  }catch(e){
+    setPermCard('perm-audio-ctx','err','❌','Motor de audio','No soportado en este navegador');
+    btn.textContent='ERROR — Usa Chrome o Safari'; btn.disabled=false; return;
+  }
+
+  /* PASO 2: Resume AudioContext (necesario en Chrome después de política autoplay) */
+  if(audioCtx.state==='suspended'){
+    try{ await audioCtx.resume(); }catch(e){}
+  }
+
+  /* PASO 3: Pedir micrófono — DENTRO del mismo evento de usuario */
+  setPermCard('perm-mic','wait','🎙','Micrófono','Esperando tu autorización...');
+  try{
+    /* Primero intentamos con constraints mínimas (máxima compatibilidad Safari) */
+    let stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+      });
+    }catch(e1){
+      /* Fallback: constraints básicas para Safari iOS antiguo */
+      stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    }
+    buildChain(stream);
+    micReady=true;
+    setPermCard('perm-mic','ok','✅','Micrófono activo','Ganancia ×60 · HPF 150Hz · Detección activa');
+    log('Micrófono autorizado','ok');
+    calibrarBase();
+  }catch(e){
+    setPermCard('perm-mic','err','🚫','Micrófono denegado',
+      'Ve a Ajustes → '+( isIOS?'Safari':'Privacidad')+' → Micrófono → Permitir para este sitio');
+    btn.textContent='Reintentar'; btn.disabled=false;
+    /* Botón de reintento */
+    btn.onclick=()=>iniciarTodo(btn);
+    return;
+  }
+
+  /* PASO 4: GPS en paralelo (no bloquea si falla) */
+  setPermCard('perm-gps','wait','📡','GPS / Ubicación','Buscando señal...');
+  iniciarGPS();
+
+  /* PASO 5: UI final */
+  btn.textContent='✅ SISTEMA ACTIVO';
+  btn.style.background='#22c55e';
+  btn.style.color='#000';
+  btn.disabled=true;
+  document.getElementById('sys-notice').style.display='block';
+  setDot('on','LISTO');
+  log('SonarRescate v0.5 listo — sesión '+SID,'i');
+  /* Navegar a escucha después de 1.5s */
+  setTimeout(()=>tab('esc'),1500);
+}
+
+function setPermCard(id,state,icon,title,sub){
+  const card=document.getElementById(id);
+  if(!card) return;
+  card.className='perm-card '+state;
+  const iconEl=card.querySelector('.perm-icon');
+  const titleEl=card.querySelector('.perm-title');
+  const subEl=card.querySelector('.perm-sub');
+  if(iconEl) iconEl.textContent=icon;
+  if(titleEl) titleEl.textContent=title;
+  if(subEl) subEl.textContent=sub;
+}
+
+/* ── CADENA DE AUDIO ── */
+function buildChain(stream){
+  const src=audioCtx.createMediaStreamSource(stream);
+  gainNode=audioCtx.createGain(); gainNode.gain.value=cfg.gain;
+  const hpf=audioCtx.createBiquadFilter();
+  hpf.type='highpass'; hpf.frequency.value=150; hpf.Q.value=0.5;
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=256; analyser.smoothingTimeConstant=0.1;
+  src.connect(gainNode); gainNode.connect(hpf); hpf.connect(analyser);
+}
+
+/* ── CALIBRACIÓN ── */
+function calibrarBase(){
+  bSamples=[]; bReady=false; let n=0; const total=60;
+  document.getElementById('bllbl').textContent='Calibrando ruido base...';
+  const iv=setInterval(()=>{
+    if(!analyser){clearInterval(iv);return;}
+    const d=new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(d);
+    const p=calcPeak(d);
+    if(!isNaN(p)) bSamples.push(p);
+    n++;
+    document.getElementById('blf').style.width=(n/total*100)+'%';
+    document.getElementById('bllbl').textContent='Calibrando: '+Math.round(n/total*100)+'%';
+    if(n>=total){
+      clearInterval(iv);
+      bSamples.sort((a,b)=>a-b);
+      baseline=bSamples[Math.floor(bSamples.length*.7)];
+      bReady=true;
+      document.getElementById('blf').style.background='#22c55e';
+      document.getElementById('bllbl').textContent='Base: '+baseline.toFixed(1)+' dB — detectando señales';
+      document.getElementById('sc-base').textContent=baseline.toFixed(1)+' dB';
+      log('Base calibrada: '+baseline.toFixed(1)+' dB','ok');
+    }
+  },50);
+}
+
+/* ── DSP ── */
+function calcPeak(data){
+  let pk=0;
+  for(let i=0;i<data.length;i++){const a=Math.abs(data[i]);if(!isNaN(a)&&a>pk)pk=a;}
+  return pk>0?Math.max(-90,20*Math.log10(pk)):-90;
+}
+function calcRMS(data){
+  let s=0,c=0;
+  for(let i=0;i<data.length;i++){if(!isNaN(data[i])){s+=data[i]*data[i];c++;}}
+  const r=c>0?Math.sqrt(s/c):0;
+  return r>0?Math.max(-90,20*Math.log10(r)):-90;
+}
+
+/* ── CLASIFICACIÓN ── */
+function clasificar(db){
+  if(db>-20) return{zona:0,dist:'< 50',unit:'cm',tipo:'CONTACTO DIRECTO',conf:'Excavar aquí de inmediato',color:'#ef4444',cls:'z0'};
+  if(db>-32) return{zona:1,dist:'0.5–1.5',unit:'m',tipo:'PARED / LOSA',conf:'1 capa de escombro',color:'#f59e0b',cls:'z1'};
+  if(db>-50) return{zona:2,dist:'1.5–3',unit:'m',tipo:'1–2 CAPAS',conf:'Escombro moderado',color:'#eab308',cls:'z2'};
+  if(db>-65) return{zona:3,dist:'3–5',unit:'m',tipo:'MÚLTIPLES CAPAS',conf:'Señal débil — excavar',color:'#22c55e',cls:'z3'};
+  return{zona:4,dist:'>5',unit:'m',tipo:'INCIERTO',conf:'Posible ruido ambiental',color:'#333',cls:''};
+}
+
+function actualizarDist(db,suf){
+  const d=clasificar(db);
+  const s=suf?'-'+suf:'';
+  const card=document.getElementById('distcard'+(suf?'-'+suf:''));
+  if(card) card.className='distcard '+(d.cls||'');
+  const set=(id,v,c)=>{const el=document.getElementById(id+s);if(el){el.textContent=v;if(c)el.style.color=c;}};
+  set('dv',d.dist);set('du',' '+d.unit);set('dt',d.tipo,d.color);set('dc',d.conf);
+  return d;
+}
+
+/* ── DETECCIÓN ── */
+function checkDet(db,origen){
+  const umbral=bReady?Math.max(cfg.thresh,baseline+8):cfg.thresh;
+  if(db<=umbral||alertCD) return;
+  alertCD=true; setTimeout(()=>alertCD=false,1400);
+
+  const d=actualizarDist(db,origen==='emit'?'e':null);
+  const ev={hora:ts(),full:tsFull(),
+    msg:`SEÑAL ${db.toFixed(1)} dB — ${d.dist} ${d.unit} (${d.tipo})`,
+    tipo:'danger',db,zona:d.zona,distancia:`${d.dist} ${d.unit}`,
+    pos:posActual?{...posActual}:null};
+  eventos.push(ev); cntEv++; if(ev.pos) cntGeo++;
+  document.getElementById('sc-ev').textContent=cntEv;
+  document.getElementById('sc-geo').textContent=cntGeo;
+  document.getElementById('gc-pts').textContent=cntGeo;
+  document.getElementById('cnt-tot').textContent=cntEv;
+  document.getElementById('cnt-geo2').textContent=cntGeo;
+
+  const coord=ev.pos?` [${ev.pos.lat.toFixed(5)},${ev.pos.lng.toFixed(5)}]`:'[sin GPS]';
+  log(ev.msg+coord,'d',origen==='emit'?'elog-emit':'elog-esc');
+
+  const af=document.getElementById('af-'+(origen||'esc'));
+  if(af){af.className='aflash show';setTimeout(()=>af.className='aflash',2200);}
+  setDot('alert','¡SEÑAL!');
+  setTimeout(()=>{if(isListening)setDot('listen','ESCUCHANDO');else setDot('','INACTIVO');},2000);
+  agregarMarker(ev); redrawHeat();
+  if(navigator.vibrate) navigator.vibrate([150,80,150,80,300]);
+  beep();
+}
+
+function beep(){
+  if(!audioCtx||audioCtx.state!=='running') return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.connect(g);g.connect(audioCtx.destination);
+  o.type='square';o.frequency.value=1046;
+  g.gain.setValueAtTime(0.2,audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.1);
+  o.start(audioCtx.currentTime);o.stop(audioCtx.currentTime+0.1);
+}
+
+/* ── ESCUCHA ── */
+async function toggleEscucha(){
+  const btn=document.getElementById('btn-esc');
+  if(!micReady){
+    alert('Primero ve a INICIO y presiona INICIAR SISTEMA para activar el micrófono.');
+    tab('inicio'); return;
+  }
+  if(!isListening){
+    if(audioCtx.state!=='running') await audioCtx.resume();
+    isListening=true;
+    btn.textContent='DETENER ESCUCHA'; btn.className='btn rec';
+    setDot('listen','ESCUCHANDO');
+    log('Escucha activa — ganancia ×'+cfg.gain,'ok');
+    resizeCv('cv-esc');
+    const data=new Float32Array(analyser.fftSize);
+    (function tick(){
+      if(!isListening||!analyser) return;
+      analyser.getFloatTimeDomainData(data);
+      const peak=calcPeak(data),rms=calcRMS(data),combined=peak*.72+rms*.28;
+      updateMeter('mf-esc','mv-esc','mpk-esc',combined);
+      document.getElementById('sc-pk').textContent=peak.toFixed(1)+' dB';
+      checkDet(combined,'esc');
+      drawWave('cv-esc',data,combined>(bReady?Math.max(cfg.thresh,baseline+8):cfg.thresh));
+      afId=requestAnimationFrame(tick);
+    })();
+  }else{
+    isListening=false; if(afId) cancelAnimationFrame(afId);
+    btn.textContent='ESCUCHAR'; btn.className='btn prim';
+    setDot('','INACTIVO'); log('Escucha detenida','');
+  }
+}
+
+function marcarManual(){
+  if(!micReady){tab('inicio');return;}
+  const db=parseFloat(document.getElementById('mv-esc').textContent)||cfg.thresh-5;
+  checkDet(db+12,'esc');
+}
+
+/* ── EMISIÓN ── */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function iniciarProtocolo(){
+  if(!audioCtx){alert('Ve a INICIO y presiona INICIAR SISTEMA primero.');tab('inicio');return;}
+  if(isEmitting) return;
+  if(audioCtx.state!=='running') await audioCtx.resume();
+  isEmitting=true;
+  const btn=document.getElementById('btn-emit');
+  btn.textContent='EMITIENDO...';btn.className='btn rec';
+  setDot('on','EMITIENDO');
+  log('Protocolo: 3 pulsos a '+cfg.freq+' Hz','a','elog-emit');
+  for(let i=0;i<3;i++){await emitPulso(i);if(i<2)await sleep(350);}
+  document.getElementById('pd4').classList.add('on');
+  setDot('listen','ESCUCHANDO');
+  log('Silencio — '+cfg.sil.toFixed(1)+'s','','elog-emit');
+  await cicloSilencio();
+  ['pd1','pd2','pd3','pd4'].forEach(id=>{const e=document.getElementById(id);e.classList.remove('on','done');});
+  cntCiclos++;
+  document.getElementById('sc-ciclos').textContent=cntCiclos;
+  btn.textContent='EMITIR SEÑAL';btn.className='btn prim';
+  setDot('','INACTIVO');isEmitting=false;
+  log('Ciclo #'+cntCiclos+' completado','','elog-emit');
+}
+
+async function emitPulso(idx){
+  return new Promise(res=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.type='sine';o.frequency.value=cfg.freq;
+    g.gain.setValueAtTime(0,audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(0.9,audioCtx.currentTime+0.02);
+    g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+cfg.dur/1000-0.02);
+    o.start(audioCtx.currentTime);o.stop(audioCtx.currentTime+cfg.dur/1000);
+    const el=document.getElementById('pd'+(idx+1));el.classList.add('on');
+    setTimeout(()=>{el.classList.remove('on');el.classList.add('done');res();},cfg.dur+80);
+  });
+}
+
+async function cicloSilencio(){
+  const dur=cfg.sil*1000,start=Date.now();
+  const fill=document.getElementById('sf'),lbl=document.getElementById('sl');
+  lbl.classList.add('cnt');resizeCv('cv-emit');
+  const data=analyser?new Float32Array(analyser.fftSize):new Float32Array(256);
+  await new Promise(res=>{
+    (function tick(){
+      const el=Date.now()-start,prog=Math.min(el/dur,1);
+      fill.style.width=(prog*100)+'%';
+      lbl.textContent=((dur-el)/1000).toFixed(1)+'s...';
+      if(analyser&&audioCtx.state==='running'){
+        analyser.getFloatTimeDomainData(data);
+        const peak=calcPeak(data),rms=calcRMS(data),combined=peak*.72+rms*.28;
+        updateMeter('mf-emit','mv-emit',null,combined);
+        const pe=document.getElementById('sc-pico-e');
+        const cur=parseFloat(pe.textContent)||(-90);
+        if(peak>cur) pe.textContent=peak.toFixed(1)+' dB';
+        checkDet(combined,'emit');
+        drawWave('cv-emit',data,combined>(bReady?Math.max(cfg.thresh,baseline+8):cfg.thresh));
+      }
+      if(el<dur) requestAnimationFrame(tick);else res();
+    })();
+  });
+  fill.style.width='0%';lbl.textContent='Listo para emitir';lbl.classList.remove('cnt');
+}
+
+/* ── CANVAS ── */
+function resizeCv(id){
+  const c=document.getElementById(id);if(!c)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  c.width=(c.offsetWidth||300)*dpr;
+  c.height=72*dpr;
+}
+
+function drawWave(id,data,alerta){
+  const c=document.getElementById(id);if(!c)return;
+  const w=c.width,h=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#080808';ctx.fillRect(0,0,w,h);
+  ctx.beginPath();
+  ctx.strokeStyle=alerta?'#ef4444':'#f59e0b';ctx.lineWidth=1.5;
+  const amp=h/2,step=Math.ceil(data.length/w);
+  ctx.moveTo(0,amp);
+  for(let i=0;i<w;i++){
+    const idx=Math.min(i*step,data.length-1);
+    const v=data[idx];
+    ctx.lineTo(i,amp+(isNaN(v)?0:v)*amp*3.5);
+  }
+  ctx.stroke();
+  ctx.beginPath();ctx.strokeStyle='#1a1a1a';ctx.lineWidth=0.5;
+  ctx.moveTo(0,amp);ctx.lineTo(w,amp);ctx.stroke();
+  if(bReady){
+    const by=amp-(Math.pow(10,baseline/20))*amp*3.5;
+    ctx.beginPath();ctx.strokeStyle='#3b82f644';ctx.lineWidth=0.5;ctx.setLineDash([2,3]);
+    ctx.moveTo(0,by);ctx.lineTo(w,by);ctx.stroke();ctx.setLineDash([]);
+  }
+}
+
+function updateMeter(fid,vid,pkid,db){
+  const pct=Math.max(0,Math.min(100,(db+90)/90*100));
+  const fe=document.getElementById(fid);if(fe)fe.style.width=pct+'%';
+  const ve=document.getElementById(vid);if(ve)ve.textContent=db.toFixed(1)+' dB';
+  if(pkid){
+    if(db>peakHold){peakHold=db;clearTimeout(peakTmr);peakTmr=setTimeout(()=>peakHold=db-15,2000);}
+    const pp=Math.max(0,Math.min(100,(peakHold+90)/90*100));
+    const pke=document.getElementById(pkid);if(pke)pke.style.left=pp+'%';
+  }
+}
+
+/* ── GPS ── */
+function iniciarGPS(){
+  if(!navigator.geolocation){
+    setPermCard('perm-gps','err','❌','GPS no disponible','Este dispositivo no tiene GPS');
+    document.getElementById('sys-gps-st').textContent='no disponible';return;
+  }
+  if(!map) initMapa();
+  gpsWatch=navigator.geolocation.watchPosition(
+    pos=>{
+      const{latitude:lat,longitude:lng,accuracy}=pos.coords;
+      posActual={lat,lng,accuracy,ts:Date.now()};gpsReady=true;
+      document.getElementById('gc-lat').textContent=lat.toFixed(6);
+      document.getElementById('gc-lng').textContent=lng.toFixed(6);
+      document.getElementById('gc-acc').textContent='±'+accuracy.toFixed(0)+' m';
+      document.getElementById('gps-acc-lbl').textContent='GPS: ±'+accuracy.toFixed(0)+'m';
+      document.getElementById('sys-gps-st').textContent='±'+accuracy.toFixed(0)+'m';
+      actualizarPosMarker(lat,lng,accuracy);
+      if(!gpsReady||!document.getElementById('perm-gps').classList.contains('ok')){
+        setPermCard('perm-gps','ok','✅','GPS activo','Precisión: ±'+accuracy.toFixed(0)+' m');
+        const ng=document.getElementById('notice-gps');
+        if(ng)ng.innerHTML='<b class="ok">GPS activo</b> — precisión ±'+accuracy.toFixed(0)+' m. Cada detección queda georreferenciada.';
+        log('GPS activo — ±'+accuracy.toFixed(0)+'m','g');
+      }
+    },
+    err=>{
+      const msgs={1:'Permiso denegado',2:'Sin señal GPS',3:'Tiempo agotado'};
+      setPermCard('perm-gps','err','⚠️','GPS: '+(msgs[err.code]||'error'),'Los eventos se registrarán sin coordenadas');
+      document.getElementById('sys-gps-st').textContent=msgs[err.code]||'error';
+    },
+    {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+  );
+}
+
+/* ── MAPA ── */
+function initMapa(){
+  if(map) return;
+  map=L.map('map',{zoomControl:true,attributionControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  heatCv=document.createElement('canvas');
+  heatCv.style.cssText='position:absolute;top:0;left:0;pointer-events:none;z-index:400;opacity:.78;';
+  heatCtx=heatCv.getContext('2d');
+  map.on('moveend zoomend resize',redrawHeat);
+  const c=posActual?[posActual.lat,posActual.lng]:[4.7110,-74.0721];
+  map.setView(c,16);
+  map.whenReady(()=>{
+    const mp=map.getPane('mapPane');
+    if(mp){mp.style.position='relative';mp.appendChild(heatCv);}
+    redrawHeat();
+  });
+}
+
+function redrawHeat(){
+  if(!map||!heatCv||!heatCtx) return;
+  const sz=map.getSize();heatCv.width=sz.x;heatCv.height=sz.y;
+  const mp=map.getPane('mapPane');
+  if(mp){const t=mp.style.transform||'';const m=t.match(/translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/);
+    heatCv.style.left=(m?-parseFloat(m[1]):0)+'px';heatCv.style.top=(m?-parseFloat(m[2]):0)+'px';}
+  heatCtx.clearRect(0,0,heatCv.width,heatCv.height);if(!capaHeat)return;
+  eventos.filter(e=>e.pos&&e.db).forEach(e=>{
+    const pt=map.latLngToContainerPoint([e.pos.lat,e.pos.lng]);
+    const peso=Math.max(0,Math.min(1,(e.db+90)/70));const radio=18+peso*28;
+    const gr=heatCtx.createRadialGradient(pt.x,pt.y,0,pt.x,pt.y,radio);
+    const col=zColor(e.zona);
+    gr.addColorStop(0,col.replace('1)','0.55)'));gr.addColorStop(0.45,col.replace('1)','0.28)'));gr.addColorStop(1,'rgba(0,0,0,0)');
+    heatCtx.beginPath();heatCtx.fillStyle=gr;heatCtx.arc(pt.x,pt.y,radio,0,Math.PI*2);heatCtx.fill();
+  });
+}
+
+const zColor=z=>['rgba(239,68,68,1)','rgba(245,158,11,1)','rgba(234,179,8,1)','rgba(34,197,94,1)','rgba(100,100,100,1)'][z]||'rgba(100,100,100,1)';
+
+function agregarMarker(ev){
+  if(!map||!capaMark||!ev.pos) return;
+  const col=zColor(ev.zona);
+  const ico=L.divIcon({className:'',html:`<div style="width:13px;height:13px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 5px ${col};"></div>`,iconSize:[13,13],iconAnchor:[6,6]});
+  const m=L.marker([ev.pos.lat,ev.pos.lng],{icon:ico}).addTo(map);
+  m.bindPopup(`<div style="font-family:monospace;font-size:11px;line-height:1.9;">
+    <b>${ev.hora}</b><br>Nivel: ${ev.db?ev.db.toFixed(1):'—'} dB<br>
+    Distancia: ${ev.distancia||'—'}<br>Precisión GPS: ±${ev.pos.accuracy?ev.pos.accuracy.toFixed(0):'—'} m</div>`);
+  markers.push(m);
+}
+
+function actualizarPosMarker(lat,lng,acc){
+  if(!map)return;
+  if(posMarker)map.removeLayer(posMarker);if(accCircle)map.removeLayer(accCircle);
+  if(!capaPos)return;
+  const ico=L.divIcon({className:'',html:`<div style="width:14px;height:14px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 7px #3b82f6;"></div>`,iconSize:[14,14],iconAnchor:[7,7]});
+  posMarker=L.marker([lat,lng],{icon:ico}).addTo(map);
+  posMarker.bindTooltip('Operador');
+  if(acc<120)accCircle=L.circle([lat,lng],{radius:acc,color:'#3b82f6',fillColor:'#3b82f622',fillOpacity:.4,weight:1}).addTo(map);
+}
+
+function toggleCapa(c){
+  if(c==='heat'){capaHeat=!capaHeat;document.getElementById('lbtn-heat').classList.toggle('on',capaHeat);redrawHeat();}
+  if(c==='mark'){capaMark=!capaMark;document.getElementById('lbtn-mark').classList.toggle('on',capaMark);markers.forEach(m=>capaMark?map.addLayer(m):map.removeLayer(m));}
+  if(c==='pos'){capaPos=!capaPos;document.getElementById('lbtn-pos').classList.toggle('on',capaPos);if(posActual)actualizarPosMarker(posActual.lat,posActual.lng,posActual.accuracy||20);}
+}
+
+function centrarMapa(){
+  if(!map)return;
+  if(posActual)map.setView([posActual.lat,posActual.lng],17);
+  else if(eventos.length&&eventos[0].pos)map.setView([eventos[0].pos.lat,eventos[0].pos.lng],16);
+}
+
+/* ── EXPORTAR ── */
+function buildGJ(){
+  return{type:'FeatureCollection',
+    metadata:{session_id:SID,fecha:tsFull(),total:cntEv,con_gps:cntGeo,app:'SonarRescate v0.5'},
+    features:eventos.filter(e=>e.pos).map((e,i)=>({type:'Feature',
+      geometry:{type:'Point',coordinates:[+e.pos.lng.toFixed(7),+e.pos.lat.toFixed(7)]},
+      properties:{id:i+1,session_id:SID,hora_local:e.full,nivel_db:e.db?+e.db.toFixed(2):null,
+        distancia:e.distancia||null,zona:['CONTACTO_DIRECTO','PARED_LOSA','1_2_CAPAS','MULTIPLES_CAPAS','INCIERTO'][e.zona]||'DESCONOCIDO',
+        precision_gps_m:e.pos.accuracy?+e.pos.accuracy.toFixed(1):null}
+    }))};
+}
+function dl(content,name,type){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();}
+function exportarGeoJSON(){if(!cntGeo){alert('Sin eventos GPS aún. Activa el GPS desde INICIO.');return;}dl(JSON.stringify(buildGJ(),null,2),`sonar_${SID}.geojson`,'application/geo+json');}
+function exportarCSV(){
+  let c='hora_local,nivel_db,distancia,zona,latitud,longitud,precision_gps_m\n';
+  eventos.forEach(e=>{c+=`"${e.full}",${e.db?e.db.toFixed(2):''},"${e.distancia||''}","${e.zona!==undefined?['CONTACTO_DIRECTO','PARED_LOSA','1_2_CAPAS','MULTIPLES_CAPAS','INCIERTO'][e.zona]||'':''}",${e.pos?e.pos.lat.toFixed(7):''},${e.pos?e.pos.lng.toFixed(7):''},${e.pos&&e.pos.accuracy?e.pos.accuracy.toFixed(1):''}\n`;});
+  dl(c,`sonar_${SID}.csv`,'text/csv');
+}
+function exportarTXT(){
+  let t=`=== SONAR RESCATE v0.5 — SESIÓN ${SID} ===\nFecha: ${tsFull()}\nEventos: ${cntEv} total · ${cntGeo} con GPS · ${cntCiclos} ciclos emisión\n\nHORA                 | dB     | DISTANCIA    | LAT           | LNG\n`;
+  t+='---------------------+--------+--------------+---------------+---------------\n';
+  eventos.forEach(e=>{t+=`${e.full.padEnd(21)}| ${(e.db?e.db.toFixed(1)+' dB':'—').padEnd(7)}| ${(e.distancia||'—').padEnd(13)}| ${(e.pos?e.pos.lat.toFixed(6):'—').padEnd(15)}| ${e.pos?e.pos.lng.toFixed(6):'—'}\n`;});
+  dl(t,`sonar_${SID}.txt`,'text/plain');
+}
+
+/* ── RESET ── */
+function resetearSesion(){
+  if(!confirm('¿Borrar todos los eventos de esta sesión?')) return;
+  eventos=[];cntEv=0;cntGeo=0;cntCiclos=0;
+  ['sc-ev','sc-geo','gc-pts','sc-ciclos','cnt-tot','cnt-geo2'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent='0';});
+  ['elog-esc','elog-emit'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="erow"><span class="et">—</span><span class="em">Sin eventos aún</span></div>';});
+  markers.forEach(m=>{if(map)map.removeLayer(m);});markers=[];
+  redrawHeat();log('Nueva sesión — '+SID,'i');
+}
+
+/* ── RESIZE ── */
+window.addEventListener('resize',()=>{
+  ['cv-esc','cv-emit'].forEach(resizeCv);
+  if(map){map.invalidateSize();redrawHeat();}
+});
+</script>
+</body>
+</html>

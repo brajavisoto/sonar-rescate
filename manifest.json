@@ -1,0 +1,17 @@
+{
+  "name": "SonarRescate",
+  "short_name": "SonarRescate",
+  "description": "Herramienta acústica de búsqueda y rescate en estructuras colapsadas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait",
+  "lang": "es",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["utilities", "medical"],
+  "screenshots": []
+}
